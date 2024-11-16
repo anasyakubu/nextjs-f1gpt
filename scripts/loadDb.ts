@@ -36,10 +36,7 @@ const createCollection = async (
   similarityMetric: SimilarityMetric = "dot_product"
 ) => {
   const res = await db.createCollection(ASTRA_DB_COLLECTION, {
-    vector: {
-      dimension: 1536,
-      metric: similarityMetric,
-    },
+    vector: { dimension: 1536, metric: similarityMetric },
   });
   console.log(res);
 };
@@ -58,10 +55,7 @@ const loadSampleData = async () => {
 
       const vector = embedding.data[0].embedding;
 
-      const res = await collection.insertOne({
-        $vector: vector,
-        text: chunk,
-      });
+      const res = await collection.insertOne({ $vector: vector, text: chunk });
       console.log(res);
     }
   }
@@ -69,12 +63,8 @@ const loadSampleData = async () => {
 
 const scrapePage = async (url: string) => {
   const loader = new PuppeteerWebBaseLoader(url, {
-    launchOptions: {
-      headless: true,
-    },
-    gotoOptions: {
-      waitUntil: "domcontentloaded",
-    },
+    launchOptions: { headless: true },
+    gotoOptions: { waitUntil: "domcontentloaded" },
     evaluate: async (page, browser) => {
       const result = await page.evaluate(() => document.body.innerHTML);
       await browser.close();
