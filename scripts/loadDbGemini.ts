@@ -1,7 +1,6 @@
 import { DataAPIClient } from "@datastax/astra-db-ts";
 import { PuppeteerWebBaseLoader } from "@langchain/community/document_loaders/web/puppeteer";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { OpenAI } from "openai";
 
 import "dotenv/config";
 
@@ -12,10 +11,9 @@ const {
   ASTRA_DB_COLLECTION,
   ASTRA_DB_API_ENDPOINT,
   ASTRA_DB_APPLICATION_TOKEN,
-  OPENAI_API_KEY,
+  GEMINI_API_KEY, // Add Gemini API Key to your .env file
+  GEMINI_EMBEDDING_ENDPOINT, // Add Gemini Embedding Endpoint to your .env file
 } = process.env;
-
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const f1Data = [
   "https://en.wikipedia.org/wiki/Formula_One",
@@ -50,13 +48,7 @@ const loadSampleData = async () => {
     const content = await scrapePage(url);
     const chunks = await splitter.splitText(content);
     for await (const chunk of chunks) {
-      const embedding = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: chunk,
-        encoding_format: "float",
-      });
-
-      const vector = embedding.data[0].embedding;
+      const vector = await getGeminiEmbedding(chunk);
 
       const res = await collection.insertOne({
         $vector: vector,
@@ -82,6 +74,32 @@ const scrapePage = async (url: string) => {
     },
   });
   return (await loader.scrape())?.replace(/<[^>]*>?/gm, "");
+};
+
+// Fetch embedding using Gemini API
+const getGeminiEmbedding = async (text: string): Promise<number[]> => {
+  try {
+    const response = await fetch(GEMINI_EMBEDDING_ENDPOINT!, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        input: text,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error fetching embedding: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.embedding; // Adjust this based on Gemini's API response structure
+  } catch (error) {
+    console.error("Failed to get Gemini embedding:", error);
+    throw error;
+  }
 };
 
 createCollection().then(() => loadSampleData());
